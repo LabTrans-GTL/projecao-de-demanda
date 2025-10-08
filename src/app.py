@@ -8,35 +8,32 @@ import numpy as np
 import folium
 from streamlit_folium import folium_static
 
-# Configuração da página
+# Configuração da página - ESSENCIAL PARA RESPONSIVIDADE
 st.set_page_config(
     page_title="Projeção de Demanda do Setor Aéreo Brasileiro 2025-2054",
-    layout="wide",
+    layout="wide", # USA TODA A LARGURA DA TELA
     initial_sidebar_state="expanded"
 )
 
-# --- CSS Personalizado para Estética LabTrans/Institucional ---
+# --- CSS Personalizado para Estética e Alinhamento ---
 st.markdown("""
 <style>
-    /* 2. FUNDO AZUL CLARO E FONTES MAIORES */
+    /* 2. FUNDO AZUL CLARO E FONTES PADRÃO (100% no navegador) */
     
     /* Configuração de Cores e Fontes Globais */
     :root {
-        --background-color: #F0F8FF !important; /* Azul Claro para o fundo da página */
+        --background-color: #F0F8FF !important; 
         --text-color: #333333 !important;
         --border-color: #e0e0e0 !important;
-        font-size: 110%; /* AJUSTADO: Fonte base para um ponto neutro */
     }
     
-    /* Aplica o fundo azul claro */
     .stApp {
         background-color: var(--background-color);
     }
     
     /* ---------------------------------------------------- */
-    /* AJUSTE PARA REMOVER ESPAÇO EM BRANCO NO TOPO E OTIMIZAR MARGENS */
+    /* LIMPEZA E MARGENS */
     
-    /* Oculta o menu de deploy (os três pontos e o botão deploy) e o footer */
     #MainMenu, footer {
         visibility: hidden !important;
     }
@@ -50,110 +47,83 @@ st.markdown("""
         padding-top: 0rem; 
     }
     .stApp > header {
-        display: none; /* Oculta o cabeçalho padrão do Streamlit */
+        display: none; 
     }
     
-    /* Reduz a margem do separador --- */
     hr {
         margin-top: 0.5rem;    
         margin-bottom: 0.5rem; 
     }
     /* ---------------------------------------------------- */
-    
-    /* Estilo do sidebar (FONTES AJUSTADAS) */
-    .stSidebar .stSelectbox label, 
-    .stSidebar .stRadio label,
-    .stSidebar .stMarkdown {
-        font-size: 1.1em !important; /* AJUSTADO: Fonte dos rótulos dos filtros e texto do sidebar */
-        font-weight: 500;
-    }
-    .stSidebar div[data-testid="stTextInput"] > div > input,
-    .stSidebar div[data-testid="stSelectbox"] > div > div > div > input {
-        font-size: 1.1em !important; /* AJUSTADO: Fonte do texto digitado/selecionado no filtro */
-    }
 
-
-    /* Estilo do cabeçalho principal (mantido) */
+    /* AJUSTE DO TÍTULO PRINCIPAL E DO QUADRADO AZUL (H1) */
     .main-header {
         background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-        padding: 3rem 1.5rem; 
-        border-radius: 15px;
+        padding: 2rem 2rem; 
+        border-radius: 10px; 
         color: white !important;
         text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+        margin-top: 1.5rem; 
+        margin-bottom: 0.4rem; 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
     }
     .main-header h1 {
         color: white !important;
-        font-size: 3.5rem; 
-        margin-bottom: 0.5rem;
+        font-size: 2.4rem; /* H1 Aumentado */
+        margin-bottom: 0rem; 
+    }
+    
+    /* ALINHAMENTO DAS COLUNAS E ALTURA FIXA PARA PLOTLY E MAPA */
+    /* ESSENCIAL: Garante que os containers Plotly e Folium tenham a mesma altura forçada */
+    /* Seletor específico para o container do mapa (folium_static) */
+    div[data-testid="stColumn"] > div > div > div.streamlit-container > div:nth-child(2) {
+        height: 600px !important; 
+    }
+    /* Seletor específico para o container do gráfico (plotly) */
+    .js-plotly-plot {
+        height: 600px !important; 
     }
 
-    
-    /* Melhoria dos cartões de métricas - HIERARQUIA DE FONTES CORRIGIDA */
-    .metric-card {
-        background: #ffffff !important;
-        padding: 1.5rem; /* Ajustado */
-        border-radius: 10px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-        border: 1px solid #e0e0e0 !important;
-        margin-bottom: 0.8rem; 
-        transition: transform 0.2s ease-in-out; 
-    }
-    .metric-card:hover {
-        transform: translateY(-5px); 
-    }
-    .metric-card h4 {
-        font-size: 1.3em; /* AJUSTADO: Título do cartão */
-        margin-top: 0;
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-    }
-    .metric-card .main-value {
-        font-size: 2.0em; /* CORRIGIDO: Valor principal (CAGR) */
-        font-weight: bold;
-        margin: 0.5rem 0 0.2rem;
-    }
-    .metric-card .sub-value {
-        font-size: 1.15em; /* AJUSTADO: Valor de projeção */
-        color: #555;
-        margin: 0.2rem 0 0.5rem;
-    }
-    .metric-card .small-text {
-        font-size: 0.95em; /* AJUSTADO: Texto auxiliar */
-        color: #888;
-        margin-bottom: 0.5rem;
-    }
-    .metric-card hr {
-        margin: 1.0rem 0; /* Ajustado */
-        border: none;
-        border-top: 1px solid #f0f0f0; 
-    }
-    
-    /* Estilo para títulos secundários (mantidos) */
-    .stMarkdown h3 {
-        color: #1e3c72 !important; 
-        border-bottom: 2px solid #a9c6f0; 
-        padding-bottom: 0.7rem; 
-        margin-top: 1rem;    
-        margin-bottom: 1rem; 
-        font-size: 1.8rem; 
-    }
-    
-    /* AJUSTE PARA ALINHAMENTO FINO DOS TÍTULOS DO GRÁFICO E MAPA (mantidos) */
+    /* TÍTULOS DE GRÁFICO E MAPA (H2 ou .content-title) */
     .content-title {
         color: #1e3c72 !important; 
-        font-size: 1.8rem;
-        margin-top: 0.5rem;   
-        margin-bottom: 0.8rem; 
+        font-size: 0.7rem; /* H2 Diminuído */
+        margin-top: 0.1rem;   
+        margin-bottom: 0.2rem; 
     }
 
-    /* Sombras para elementos visuais (mantido) */
-    .js-plotly-plot, .stMap, .map-container {
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        overflow: hidden;
+    /* Outros estilos de Cartões (Mantidos) */
+    .metric-card {
+        background: #ffffff !important;
+        padding: 1.2rem; 
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08); 
+        border: 1px solid #e0e0e0 !important;
+        margin-bottom: 0.7rem; 
     }
+    .metric-card h4 { font-size: 1.15em; margin-bottom: 0.4rem; font-weight: 600; }
+    .metric-card .main-value { font-size: 1.8em; font-weight: bold; margin: 0.4rem 0 0.1rem; }
+    .metric-card .sub-value { font-size: 1.0em; margin: 0.1rem 0 0.4rem; }
+    .metric-card .small-text { font-size: 0.85em; }
+    .metric-card hr { margin: 0.8rem 0; border: none; border-top: 1px solid #f0f0f0; }
+
+    /* --- RESPONSIVIDADE --- */
+    @media (max-width: 1200px) {
+        .main-header h1 { font-size: 1.8rem; }
+        .content-title { font-size: 1.1rem; }
+    }
+    @media (max-width: 768px) {
+        div[data-testid="stHorizontalBlock"] { display: block; }
+        div[data-testid="stColumn"] { width: 100% !important; margin-bottom: 1rem; }
+        
+        /* Remove a altura fixa em mobile para deixar o mapa mais adaptável */
+        div[data-testid="stColumn"] > div > div > div.streamlit-container > div:nth-child(2),
+        .js-plotly-plot {
+            height: auto !important;
+            min-height: 400px;
+        }
+    }
+
 
 </style>
 """, unsafe_allow_html=True)
@@ -164,7 +134,7 @@ CSV_PAX_MERCADO = os.path.join('src', 'data', 'projecoes_por_aeroporto.csv')
 CSV_PAX_PAN = os.path.join('src', 'data', 'base_final_PAN_cenarios.csv')
 CSV_CARGA = os.path.join('src', 'data', 'Painel_Carga.csv')
 
-# --- Funções de Carregamento ---
+# --- Funções de Carregamento (Mantidas) ---
 @st.cache_data
 def load_aisweb():
     try:
@@ -200,7 +170,7 @@ def load_carga():
     except Exception:
         return pd.DataFrame()
 
-# --- Funções de Conversão ---
+# --- Funções de Conversão (Mantidas) ---
 def convert_passageiros_value(value):
     try:
         str_value = str(value).strip()
@@ -393,7 +363,7 @@ col_grafico, col_mapa = st.columns([2, 1])
 
 # --- Coluna 1: GRÁFICO (2/3 da largura) ---
 with col_grafico:
-    # Usa a classe CSS "content-title" para o título alinhado e sem margem extra
+    # Usa a classe CSS "content-title" para o título alinhado
     st.markdown(f'<h2 class="content-title">{titulo}</h2>', unsafe_allow_html=True)
     
     fig = go.Figure()
@@ -418,7 +388,7 @@ with col_grafico:
                         mode='lines+markers',
                         name='Observado',
                         line=dict(color='#6C757D', width=2, dash='dot'),
-                        marker=dict(size=6, color='#6C757D')
+                        marker=dict(size=5, color='#6C757D')
                     )
                 )
 
@@ -433,8 +403,8 @@ with col_grafico:
                         y=serie[coluna_valor],
                         mode='lines+markers',
                         name=cenario_nome,
-                        line=dict(color=cor, width=3),
-                        marker=dict(size=8, color=cor) 
+                        line=dict(color=cor, width=2.5),
+                        marker=dict(size=7, color=cor) 
                     )
                 )
 
@@ -445,36 +415,38 @@ with col_grafico:
             tickmode='linear', 
             dtick=5, 
             gridcolor='#e0e0e0', 
-            title_font=dict(size=14, color='#333'), # AJUSTADO: Rótulo do Eixo X
-            tickfont=dict(size=13)                  # AJUSTADO: Valores do Eixo X
+            title_font=dict(size=13, color='#333'), 
+            tickfont=dict(size=12),
+            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055]        
         ), 
         yaxis=dict(
             title=y_label, 
             gridcolor='#e0e0e0', 
-            title_font=dict(size=14, color='#333'), # AJUSTADO: Rótulo do Eixo Y
+            title_font=dict(size=13, color='#333'), 
             tickformat='.0f', 
             separatethousands=True,
-            tickfont=dict(size=13)                  # AJUSTADO: Valores do Eixo Y
+            tickfont=dict(size=12)                  
         ), 
         plot_bgcolor='white', 
         paper_bgcolor='white', 
-        font=dict(family="Arial, sans-serif", color='#333', size=13), # AJUSTADO: Fonte base do gráfico
+        font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(
             orientation="h",         
             yanchor="bottom",        
             y=1.02,                   
             xanchor="center",          
             x=0.5,                  
-            font=dict(size=13)       # AJUSTADO: Fonte da legenda
+            font=dict(size=12)       
         ),
-        height=650 
+        # Altura definida para alinhar com o mapa
+        height=600 
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
 # --- Coluna 2: MAPA (1/3 da largura) ---
 with col_mapa:
-    # Usa a classe CSS "content-title" para o título alinhado e sem margem extra
+    # Usa a classe CSS "content-title" para o título alinhado
     st.markdown('<h2 class="content-title">Cenário Tendencial 2054</h2>', unsafe_allow_html=True)
 
     target_icao = icao if escopo == 'Aeroporto Específico' else None
@@ -509,7 +481,7 @@ with col_mapa:
                 # --- Definição de Raio para Leafmap (Folium) ---
                 map_data_volume['volume_log'] = np.log1p(map_data_volume['volume_2054'].clip(lower=1))
                 
-                MAX_RADIUS = 25 
+                MAX_RADIUS = 20 # Raio máximo um pouco menor
                 min_log = map_data_volume['volume_log'].min()
                 max_log = map_data_volume['volume_log'].max()
 
@@ -565,8 +537,8 @@ with col_mapa:
                     ).add_to(m)
 
                 # Exibe o mapa no Streamlit
-                # O height é ajustado para ser o mesmo do gráfico (650)
-                folium_static(m, width=700, height=650) 
+                # Altura definida para alinhar com o gráfico
+                folium_static(m, width=700, height=600) 
 
             else:
                 st.warning("Nenhuma coordenada ou volume válido encontrado para o mapa.")
@@ -577,9 +549,9 @@ with col_mapa:
         st.info("Nenhum dado de projeção disponível para mapeamento.")
 
 
-# --- Métricas com CAGR ---
-st.markdown("---")
-    
+# ---
+## Métricas
+
 if not df.empty:
     
     col_tenden, col_transf, col_pess = st.columns(3)
@@ -633,12 +605,13 @@ if not df.empty:
                     <p class="sub-value">Projeção {ultimo_ano}: <strong>{valor_fmt}</strong></p>
                 </div>
                 """, unsafe_allow_html=True)
+            
 # ---
 ## Footer
 
 st.markdown("---")
 st.markdown("""
-<div style="text-align: center; color: #666; font-size: 1em; padding: 1rem; margin-top: 0.5rem;">
+<div style="text-align: center; color: #666; font-size: 0.9em; padding: 0.8rem; margin-top: 0.5rem;">
     <p><strong>Última Atualização:</strong> Outubro/2025</p>
 </div>
 """, unsafe_allow_html=True)

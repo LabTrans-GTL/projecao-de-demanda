@@ -378,23 +378,7 @@ with col_grafico:
         # Calcula o valor máximo para o eixo Y com base em todos os dados da visualização
         max_val = df[coluna_valor].max()
         if pd.notna(max_val) and max_val > 0:
-            yaxis_range = [0, max_val * 1.20]
-
-        # Determina se a base é de carga (para formatação personalizada de ticks)
-        is_carga = (coluna_valor == 'carga_(kg)')
-
-        # Prepara tickvals e ticktext para o eixo Y usando a função fmt (ponto como separador de milhar)
-        tick_vals = None
-        tick_text = None
-        if yaxis_range is not None:
-            try:
-                y0, y1 = float(yaxis_range[0]), float(yaxis_range[1])
-                ticks = np.linspace(y0, y1, num=6)
-                tick_vals = [float(round(v)) for v in ticks]
-                tick_text = [fmt(v, is_carga) for v in tick_vals]
-            except Exception:
-                tick_vals = None
-                tick_text = None
+            yaxis_range = [0, max_val * 1.25]
 
         # Observado (até 2024)
         if not df_hist.empty:
@@ -431,14 +415,12 @@ with col_grafico:
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2056]
+            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2057]
         ),
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
-            tickfont=dict(size=12),
-            range=yaxis_range,  # Aplica o range dinâmico
-            tickvals=tick_vals,
-            ticktext=tick_text
+            tickformat='.0f', separatethousands=True, tickfont=dict(size=12),
+            range=yaxis_range  # Aplica o range dinâmico
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(
@@ -604,7 +586,6 @@ if not df.empty:
                     <p class="sub-value">Projeção {ultimo_ano}: <strong>{valor_fmt}</strong></p>
                 </div>
                 """, unsafe_allow_html=True)
-
 
 # ---
 ## Footer

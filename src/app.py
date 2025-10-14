@@ -4,62 +4,37 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import numpy as np 
-# IMPORTAÇÃO NECESSÁRIA PARA O MAPA
 import folium
 from streamlit_folium import folium_static
 
 # Configuração da página - ESSENCIAL PARA RESPONSIVIDADE
 st.set_page_config(
     page_title="Projeção de Demanda do Setor Aéreo Brasileiro 2025-2054",
-    layout="wide", # USA TODA A LARGURA DA TELA
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # --- CSS Personalizado para Estética e Alinhamento ---
 st.markdown("""
 <style>
-    /* 2. FUNDO AZUL CLARO E FONTES PADRÃO (100% no navegador) */
-    
     /* Configuração de Cores e Fontes Globais */
     :root {
         --background-color: #F0F8FF !important; 
         --text-color: #333333 !important;
         --border-color: #e0e0e0 !important;
     }
-    
-    .stApp {
-        background-color: var(--background-color);
-    }
-    
-    /* ---------------------------------------------------- */
-    /* LIMPEZA E MARGENS */
-    
-    #MainMenu, footer {
-        visibility: hidden !important;
-    }
-    
-    .block-container {
-        padding-top: 0rem !important; 
-        padding-bottom: 0rem;
-        margin-top: 0rem !important;
-    }
-    .main {
-        padding-top: 0rem; 
-    }
-    .stApp > header {
-        display: none; 
-    }
-    
-    hr {
-        margin-top: 0.5rem;    
-        margin-bottom: 0.5rem; 
-    }
-    /* ---------------------------------------------------- */
+    .stApp { background-color: var(--background-color); }
+    /* Limpeza e Margens */
+    #MainMenu, footer { visibility: hidden !important; }
+    .block-container { padding-top: 0rem !important; padding-bottom: 0rem; margin-top: 0rem !important; }
+    .main { padding-top: 0rem; }
+    .stApp > header { display: none; }
+    hr { margin-top: 0.2rem; margin-bottom: 0.8rem; }
 
-    /* AJUSTE DO TÍTULO PRINCIPAL E DO QUADRADO AZUL (H1) */
+    /* Ajuste do Título Principal */
     .main-header {
         background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-        padding: 2rem 2rem; 
+        padding: 1.5rem 1.5rem; 
         border-radius: 10px; 
         color: white !important;
         text-align: center;
@@ -67,32 +42,21 @@ st.markdown("""
         margin-bottom: 0.4rem; 
         box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
     }
-    .main-header h1 {
-        color: white !important;
-        font-size: 2.4rem; /* H1 Aumentado */
-        margin-bottom: 0rem; 
-    }
+    .main-header h1 { color: white !important; font-size: 2.0rem; margin-bottom: 0rem; }
     
     /* ALINHAMENTO DAS COLUNAS E ALTURA FIXA PARA PLOTLY E MAPA */
-    /* ESSENCIAL: Garante que os containers Plotly e Folium tenham a mesma altura forçada */
-    /* Seletor específico para o container do mapa (folium_static) */
-    div[data-testid="stColumn"] > div > div > div.streamlit-container > div:nth-child(2) {
-        height: 600px !important; 
-    }
-    /* Seletor específico para o container do gráfico (plotly) */
-    .js-plotly-plot {
-        height: 600px !important; 
-    }
+    div[data-testid="stColumn"] > div > div > div.streamlit-container > div:nth-child(2) { height: 600px !important; }
+    .js-plotly-plot { height: 600px !important; }
 
     /* TÍTULOS DE GRÁFICO E MAPA (H2 ou .content-title) */
     .content-title {
         color: #1e3c72 !important; 
-        font-size: 0.7rem; /* H2 Diminuído */
-        margin-top: 0.1rem;   
-        margin-bottom: 0.2rem; 
+        font-size: 1.15rem; 
+        margin-top: 0.3rem;   
+        margin-bottom: 0.6rem; 
     }
-
-    /* Outros estilos de Cartões (Mantidos) */
+    
+    /* Estilo dos Cartões de Métricas */
     .metric-card {
         background: #ffffff !important;
         padding: 1.2rem; 
@@ -103,25 +67,13 @@ st.markdown("""
     }
     .metric-card h4 { font-size: 1.15em; margin-bottom: 0.4rem; font-weight: 600; }
     .metric-card .main-value { font-size: 1.8em; font-weight: bold; margin: 0.4rem 0 0.1rem; }
-    .metric-card .sub-value { font-size: 1.0em; margin: 0.1rem 0 0.4rem; }
     .metric-card .small-text { font-size: 0.85em; }
-    .metric-card hr { margin: 0.8rem 0; border: none; border-top: 1px solid #f0f0f0; }
 
-    /* --- RESPONSIVIDADE --- */
-    @media (max-width: 1200px) {
-        .main-header h1 { font-size: 1.8rem; }
-        .content-title { font-size: 1.1rem; }
-    }
+    /* --- RESPONSIVIDADE (Ajustada) --- */
     @media (max-width: 768px) {
         div[data-testid="stHorizontalBlock"] { display: block; }
         div[data-testid="stColumn"] { width: 100% !important; margin-bottom: 1rem; }
-        
-        /* Remove a altura fixa em mobile para deixar o mapa mais adaptável */
-        div[data-testid="stColumn"] > div > div > div.streamlit-container > div:nth-child(2),
-        .js-plotly-plot {
-            height: auto !important;
-            min-height: 400px;
-        }
+        .js-plotly-plot { height: auto !important; min-height: 400px; }
     }
 
 
@@ -133,8 +85,22 @@ CSV_AISWEB = os.path.join('src', 'data', 'AISWEB_Aeroportos.csv')
 CSV_PAX_MERCADO = os.path.join('src', 'data', 'projecoes_por_aeroporto.csv')
 CSV_PAX_PAN = os.path.join('src', 'data', 'base_final_PAN_cenarios.csv')
 CSV_CARGA = os.path.join('src', 'data', 'Painel_Carga.csv')
+# Caminho corrigido para o CSV de passageiros internacionais
+CSV_PAX_INTERNACIONAL = os.path.join('src', 'data', 'Passageiros_Internacionais.csv')
 
-# --- Funções de Carregamento (Mantidas) ---
+# --- Função Auxiliar de Limpeza Vetorial (Para todas as funções de Load) ---
+def clean_numeric_series(series):
+    """Limpa e converte uma Series Pandas de string com formato BR para float."""
+    cleaned = (
+        series
+        .astype(str)
+        .str.replace('.', '', regex=False)  # Remove ponto de milhar
+        .str.replace(',', '.', regex=False)  # Troca vírgula por ponto decimal
+    )
+    return pd.to_numeric(cleaned, errors='coerce').fillna(0)
+
+
+# --- Funções de Carregamento ---
 @st.cache_data
 def load_aisweb():
     try:
@@ -147,17 +113,37 @@ def load_pax_mercado():
     try:
         df = pd.read_csv(CSV_PAX_MERCADO, sep=';', encoding='latin-1')
         df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+        # Aplica a limpeza robusta para a coluna de valor (total_movimento)
+        df['total_movimento'] = clean_numeric_series(df['total_movimento'])
         return df
     except Exception:
         return pd.DataFrame()
 
 @st.cache_data
-def load_pax_pan():
+def load_pax_internacional():
     try:
-        df = pd.read_csv(CSV_PAX_PAN, sep=';', encoding='latin-1')
-        df.columns = ['cenario', 'natureza', 'icao', 'sentido', 'ano', 'passageiros']
+        df = pd.read_csv(CSV_PAX_INTERNACIONAL, sep=';', encoding='latin-1')
+        df.columns = ['icao', 'ano', 'cenario', 'sentido', 'natureza', 'passageiros']
+
+        # Normaliza colunas-chave
+        df['icao'] = df['icao'].astype(str).str.upper().str.strip()
+        df['cenario'] = df['cenario'].astype(str).str.strip()
+        df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
+
+        # Limpeza robusta para 'passageiros'
+        df['passageiros'] = clean_numeric_series(df['passageiros'])
+
+        # Ignora 'sentido' e agrega por ICAO, ano e cenário
+        df = (
+            df.dropna(subset=['icao', 'ano', 'cenario'])
+              .groupby(['icao', 'ano', 'cenario'], as_index=False)['passageiros']
+              .sum()
+              .sort_values(['icao', 'cenario', 'ano'])
+        )
+
         return df
-    except Exception:
+    except Exception as e:
+        st.error(f"Erro ao carregar Passageiros_Internacionais.csv: {e}")
         return pd.DataFrame()
 
 @st.cache_data
@@ -165,25 +151,42 @@ def load_carga():
     try:
         df = pd.read_csv(CSV_CARGA, sep=';', encoding='latin-1')
         df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+        
+        # Limpeza robusta para 'carga_(kg)'
+        df['carga_(kg)'] = clean_numeric_series(df['carga_(kg)'])
+        
         df = df.dropna(subset=['icao', 'cenario', 'ano', 'carga_(kg)'])
         return df
     except Exception:
         return pd.DataFrame()
-
-# --- Funções de Conversão (Mantidas) ---
-def convert_passageiros_value(value):
+        
+@st.cache_data
+def load_pax_pan_domestico():
     try:
-        str_value = str(value).strip()
-        if not str_value: return 0.0
-        str_value = str_value.replace('.', '')
+        df = pd.read_csv(CSV_PAX_PAN, sep=';', encoding='latin-1')
+        df.columns = ['cenario', 'natureza', 'icao', 'sentido', 'ano', 'passageiros']
+        
+        # Limpeza robusta para 'passageiros' do PAN
+        df['passageiros'] = clean_numeric_series(df['passageiros'])
+        
+        return df[df['natureza'] == 'Doméstico'].copy()
+    except Exception:
+        return pd.DataFrame()
+
+# --- Funções de Conversão (NÃO USADAS NA BASE, MANTIDAS POR SEGURANÇA) ---
+# Essas funções não são mais chamadas na sidebar, pois a limpeza já é feita nos loaders
+def convert_passageiros_value(value):
+    # Lógica de conversão manual (agora obsoleta para Pax, mas mantida)
+    try:
+        str_value = str(value).strip().replace('.', '').replace(' ', '')
         if ',' in str_value:
             str_value = str_value.replace(',', '.')
-        str_value = str_value.replace(' ', '')
-        return float(str_value)
+        return float(str_value) if str_value else 0.0
     except:
         return 0.0
         
 def convert_carga_value(value):
+    # Lógica de conversão manual (agora obsoleta para Carga, mas mantida)
     try:
         str_value = str(value).strip()
         if not str_value: return 0.0
@@ -203,40 +206,26 @@ def fmt(v, is_carga):
     v = abs(v) 
     
     if is_carga:
-        if v >= 1e9: 
-            text = f"{v/1e9:,.1f}" + "B kg"
-        elif v >= 1e6: 
-            text = f"{v/1e6:,.1f}" + "M kg"
-        else:
-            text = f"{v:,.0f}" + " kg"
+        if v >= 1e9: text = f"{v/1e9:,.1f}" + "B kg"
+        elif v >= 1e6: text = f"{v/1e6:,.1f}" + "M kg"
+        else: text = f"{v:,.0f}" + " kg"
     else:
-        if v >= 1e9: 
-            text = f"{v/1e9:,.1f}" + "B"
-        elif v >= 1e6: 
-            text = f"{v/1e6:,.1f}" + "M"
-        else:
-            text = f"{v:,.0f}"
+        if v >= 1e9: text = f"{v/1e9:,.1f}" + "B"
+        elif v >= 1e6: text = f"{v/1e6:,.1f}" + "M"
+        else: text = f"{v:,.0f}"
             
     # Converte para padrão brasileiro (PONTO para milhar, VÍRGULA para decimal)
-    text = text.replace(',', 'X') 
-    text = text.replace('.', ',')
-    text = text.replace('X', '.')
+    text = text.replace(',', 'X').replace('.', ',').replace('X', '.')
     
     return text
 
 # --- Carregamento de Dados e Ajustes ---
 aeroportos = load_aisweb()
 pax_mercado = load_pax_mercado()
-pax_pan = load_pax_pan()
-carga = load_carga()
+pax_internacional = load_pax_internacional()
+carga = load_carga() # Agora definido!
 
-aeroportos = aeroportos.rename(columns={
-    'ICAO': 'ICAO',
-    'CIDADE': 'Cidade',
-    'UF': 'UF',
-    'LAT': 'lat',
-    'LONG': 'lon'
-})
+aeroportos = aeroportos.rename(columns={'ICAO': 'ICAO','CIDADE': 'Cidade','UF': 'UF','LAT': 'lat','LONG': 'lon'})
 
 # Header principal
 st.markdown("""
@@ -254,50 +243,56 @@ with st.sidebar:
         ['Passageiros', 'Carga']
     )
     
+    natureza_pax = None
+    tipo_rede = None 
+    
     if tipo_projecao == 'Passageiros':
-        natureza_pax = 'Doméstico'
-        tipo_domestico = st.selectbox(
-            'Tipo de Projeção Doméstica',
-            ['Mercado (Rede Atual)', 'PAN (Rede de Planejamento)']
+        
+        natureza_pax = st.selectbox(
+            'Natureza do Voo (Passageiros)',
+            ['Doméstico', 'Internacional']
         )
-    else:
-        natureza_pax = None
-        tipo_domestico = None
+        
+        if natureza_pax == 'Doméstico':
+            tipo_rede = st.selectbox(
+                'Rede de Projeção Doméstica',
+                ['Mercado (Rede Atual)', 'PAN (Rede de Planejamento)']
+            )
 
     # Lógica de carregamento de base
     df_base = pd.DataFrame()
     coluna_icao = ''
     coluna_valor = ''
     y_label = ''
-    conversor = None 
-
+    
     if tipo_projecao == 'Carga':
         df_base = carga
         coluna_icao = 'icao'
         coluna_valor = 'carga_(kg)'
         y_label = 'Carga (kg)'
-        conversor = convert_carga_value
         
     elif tipo_projecao == 'Passageiros':
-        if tipo_domestico == 'Mercado (Rede Atual)':
+        if natureza_pax == 'Internacional':
+            df_base = pax_internacional
+            coluna_icao = 'icao'
+            coluna_valor = 'passageiros'
+            y_label = 'Passageiros'
+            
+        elif tipo_rede == 'Mercado (Rede Atual)':
             df_base = pax_mercado
             coluna_icao = 'airport_id'
             coluna_valor = 'total_movimento'
             y_label = 'Passageiros'
-            conversor = convert_passageiros_value
-        else:  # PAN
-            df_base = pax_pan
+        else:  # Doméstico e PAN
+            df_base = load_pax_pan_domestico()
             coluna_icao = 'icao'
             coluna_valor = 'passageiros'
             y_label = 'Passageiros'
-            conversor = convert_passageiros_value
-    
-    if not df_base.empty and conversor is not None:
-        df_base_copy = df_base.copy()
-        df_base_copy[coluna_valor] = df_base_copy[coluna_valor].apply(conversor)
-        df_base = df_base_copy
+
+    # O conversor manual foi removido, a coluna já deve ser numérica.
     
     if not df_base.empty:
+        # Limpa ICAO e faz o filtro de aeroportos disponíveis
         df_base[coluna_icao] = df_base[coluna_icao].astype(str).str.upper().str.strip()
         aeroportos_disponiveis = sorted(df_base[coluna_icao].astype(str).unique())
         aeroportos_filtrados = aeroportos[aeroportos['ICAO'].isin(aeroportos_disponiveis)]
@@ -313,7 +308,7 @@ with st.sidebar:
     icao = None 
     df = pd.DataFrame()
     titulo = "Selecione uma projeção válida"
-
+    
     # Lógica para definir o título
     if escopo == 'Aeroporto Específico':
         st.markdown("### Localização")
@@ -334,7 +329,9 @@ with st.sidebar:
             if tipo_projecao == 'Carga':
                 titulo = f'Projeção de Carga - {icao}'
             elif tipo_projecao == 'Passageiros':
-                if tipo_domestico == 'Mercado (Rede Atual)':
+                if natureza_pax == 'Internacional':
+                    titulo = f'Passageiros Internacionais - {icao}'
+                elif tipo_rede == 'Mercado (Rede Atual)':
                     titulo = f'Passageiros Domésticos - Mercado (Rede Atual) - {icao}'
                 else:
                     titulo = f'Passageiros Domésticos - PAN (Rede de Planejamento) - {icao}'
@@ -348,7 +345,9 @@ with st.sidebar:
         if tipo_projecao == 'Carga':
             titulo = 'Projeção de Carga - Total Brasil'
         elif tipo_projecao == 'Passageiros':
-            if tipo_domestico == 'Mercado (Rede Atual)':
+            if natureza_pax == 'Internacional':
+                titulo = 'Passageiros Internacionais - Total Brasil'
+            elif tipo_rede == 'Mercado (Rede Atual)':
                 titulo = 'Passageiros Domésticos - Mercado (Rede Atual) - Total Brasil'
             else:
                 titulo = 'Passageiros Domésticos - PAN (Rede de Planejamento) - Total Brasil'
@@ -358,12 +357,10 @@ with st.sidebar:
 # --- Layout Principal: GRÁFICO E MAPA LADO A LADO ---
 
 st.markdown("---")
-# Define a proporção das colunas: 2/3 para o gráfico (2) e 1/3 para o mapa (1)
 col_grafico, col_mapa = st.columns([2, 1]) 
 
 # --- Coluna 1: GRÁFICO (2/3 da largura) ---
 with col_grafico:
-    # Usa a classe CSS "content-title" para o título alinhado
     st.markdown(f'<h2 class="content-title">{titulo}</h2>', unsafe_allow_html=True)
     
     fig = go.Figure()
@@ -411,34 +408,17 @@ with col_grafico:
     # Configurar layout do gráfico
     fig.update_layout(
         xaxis=dict(
-            title='Ano', 
-            tickmode='linear', 
-            dtick=5, 
-            gridcolor='#e0e0e0', 
-            title_font=dict(size=13, color='#333'), 
-            tickfont=dict(size=12),
-            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055]        
+            title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
+            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055] 
         ), 
         yaxis=dict(
-            title=y_label, 
-            gridcolor='#e0e0e0', 
-            title_font=dict(size=13, color='#333'), 
-            tickformat='.0f', 
-            separatethousands=True,
-            tickfont=dict(size=12)                  
+            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
+            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
         ), 
-        plot_bgcolor='white', 
-        paper_bgcolor='white', 
-        font=dict(family="Arial, sans-serif", color='#333', size=12), 
+        plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(
-            orientation="h",         
-            yanchor="bottom",        
-            y=1.02,                   
-            xanchor="center",          
-            x=0.5,                  
-            font=dict(size=12)       
+            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=12)       
         ),
-        # Altura definida para alinhar com o mapa
         height=600 
     )
 
@@ -446,7 +426,6 @@ with col_grafico:
 
 # --- Coluna 2: MAPA (1/3 da largura) ---
 with col_mapa:
-    # Usa a classe CSS "content-title" para o título alinhado
     st.markdown('<h2 class="content-title">Cenário Tendencial 2054</h2>', unsafe_allow_html=True)
 
     target_icao = icao if escopo == 'Aeroporto Específico' else None
@@ -472,23 +451,22 @@ with col_mapa:
         )
         
         try:
+            # Garante que as coordenadas são floats
             map_data_volume['lat'] = map_data_volume['lat'].astype(str).str.replace(',', '.').astype(float)
             map_data_volume['lon'] = map_data_volume['lon'].astype(str).str.replace(',', '.').astype(float)
             map_data_volume = map_data_volume.dropna(subset=['lat', 'lon', 'volume_2054'])
             
-            if not map_data_volume.empty:
+            if not map_data_volume.empty and map_data_volume['volume_2054'].sum() > 0:
                 
                 # --- Definição de Raio para Leafmap (Folium) ---
                 map_data_volume['volume_log'] = np.log1p(map_data_volume['volume_2054'].clip(lower=1))
                 
-                MAX_RADIUS = 20 # Raio máximo um pouco menor
+                MAX_RADIUS = 20
                 min_log = map_data_volume['volume_log'].min()
                 max_log = map_data_volume['volume_log'].max()
 
                 if max_log > min_log:
-                    map_data_volume['raio'] = (
-                        (map_data_volume['volume_log'] - min_log) / (max_log - min_log)
-                    ) * MAX_RADIUS
+                    map_data_volume['raio'] = ((map_data_volume['volume_log'] - min_log) / (max_log - min_log)) * MAX_RADIUS
                 else:
                     map_data_volume['raio'] = 5 
                     
@@ -501,8 +479,6 @@ with col_mapa:
                 )
                 
                 # --- Criação do Mapa Leafmap (Folium) ---
-                
-                # 4. Define o centro do mapa e o zoom
                 center_lat = map_data_volume['lat'].mean()
                 center_lon = map_data_volume['lon'].mean()
                 zoom_level = 4
@@ -522,7 +498,6 @@ with col_mapa:
                 
                 # Adiciona os marcadores (bolhas)
                 for _, row in map_data_volume.iterrows():
-                    
                     cor_fill = '#dc3545' if row['ICAO'] == target_icao else '#0d6efd'
                     
                     folium.CircleMarker(
@@ -536,8 +511,6 @@ with col_mapa:
                         tooltip=row['Tooltip_Text']
                     ).add_to(m)
 
-                # Exibe o mapa no Streamlit
-                # Altura definida para alinhar com o gráfico
                 folium_static(m, width=700, height=600) 
 
             else:
@@ -605,7 +578,8 @@ if not df.empty:
                     <p class="sub-value">Projeção {ultimo_ano}: <strong>{valor_fmt}</strong></p>
                 </div>
                 """, unsafe_allow_html=True)
-            
+
+
 # ---
 ## Footer
 

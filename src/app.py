@@ -204,15 +204,12 @@ def convert_carga_value(value):
 def fmt(v, is_carga):
     if v is None or np.isnan(v): return "N/A"
     v = abs(v) 
-    
+    # Sempre mostrar o número completo (sem abreviações) e, para carga, adicionar ' kg'
     if is_carga:
-        if v >= 1e9: text = f"{v/1e9:,.1f}" + "B kg"
-        elif v >= 1e6: text = f"{v/1e6:,.1f}" + "M kg"
-        else: text = f"{v:,.0f}" + " kg"
+        # Mostra sem casas decimais e com separador de milhar (sem sufixo, unidade está no eixo)
+        text = f"{v:,.0f}"
     else:
-        if v >= 1e9: text = f"{v/1e9:,.1f}" + "B"
-        elif v >= 1e6: text = f"{v/1e6:,.1f}" + "M"
-        else: text = f"{v:,.0f}"
+        text = f"{v:,.0f}"
             
     # Converte para padrão brasileiro (PONTO para milhar, VÍRGULA para decimal)
     text = text.replace(',', 'X').replace('.', ',').replace('X', '.')

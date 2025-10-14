@@ -420,66 +420,10 @@ with col_grafico:
                 )
 
     # Configurar layout do gráfico
-    # Try to set Plotly locale to pt-BR so separators follow Brazilian formatting.
-    # This is a best-effort; if the environment doesn't accept it, fall back silently.
-    try:
-        import plotly.io as pio
-        pio.templates.default = pio.templates.default  # no-op to avoid linting warnings
-        pio.layout.Template.layout = getattr(pio.layout, 'Template', None)
-        # Some environments may not support setting locale; wrap in try
-        try:
-            pio.templates.default = pio.templates.default
-            pio.layout._plotly_locale = 'pt-BR'
-        except Exception:
-            pass
-    except Exception:
-        pass
-
-    # Compute tick positions using a 'nice numbers' algorithm (1,2,2.5,5,10)
-    import math
-    def nice_ticks(start, end, max_ticks=6):
-        span = float(end) - float(start)
-        if span <= 0:
-            return [int(start), int(end)]
-        raw_step = span / (max_ticks - 1)
-        exp = math.floor(math.log10(raw_step))
-        base = raw_step / (10 ** exp)
-        multipliers = [1, 2, 2.5, 5, 10]
-        best = multipliers[-1]
-        for m in multipliers:
-            if base <= m:
-                best = m
-                break
-        step = best * (10 ** exp)
-        nice_start = math.floor(start / step) * step
-        nice_end = math.ceil(end / step) * step
-        vals = []
-        v = nice_start
-        # avoid floating point drift
-        while v <= nice_end + 1e-9:
-            vals.append(int(round(v)))
-            v += step
-        return vals
-
-    # Determine max for ticks
-    try:
-        _max_for_ticks = float(yaxis_range[1]) if yaxis_range is not None else (float(df[coluna_valor].max()) if not df.empty else 1)
-    except Exception:
-        _max_for_ticks = 1
-
-    tickvals = nice_ticks(0, max(1, int(math.ceil(_max_for_ticks))), max_ticks=6)
-    def _fmt_dot(x):
-        try:
-            s = f"{int(round(x)):,}"
-            return s.replace(',', '.')
-        except Exception:
-            return str(x)
-    ticktext = [_fmt_dot(v) for v in tickvals]
-
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055]
+            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055] 
         ), 
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 

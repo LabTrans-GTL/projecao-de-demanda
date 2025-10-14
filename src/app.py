@@ -419,22 +419,64 @@ with col_grafico:
                     )
                 )
 
+    # Compute 'nice' tick values and format them to use dot as thousand separator
+    _y_min = 0
+    if yaxis_range is not None:
+        _y_min, _y_max = yaxis_range
+    else:
+        try:
+            _y_max = float(df[coluna_valor].max()) if not df.empty else 0
+        except Exception:
+            _y_max = 0
+
+    if _y_max is None or _y_max <= 0:
+        _y_max = 1
+
+    import math
+    magnitude = 10 ** math.floor(math.log10(_y_max)) if _y_max > 0 else 1
+    best_step = magnitude
+    for m in [1, 2, 5, 10]:
+        step = m * magnitude
+        n_ticks = math.ceil(_y_max / step) + 1
+        if 4 <= n_ticks <= 8:
+            best_step = step
+            break
+
+    tick_start = int(_y_min)
+    tick_end = int(math.ceil(_y_max))
+    try:
+        tickvals = list(range(tick_start, tick_end + 1, int(best_step)))
+    except Exception:
+        tickvals = [int(i) for i in np.linspace(tick_start, tick_end, 5)]
+    if len(tickvals) < 4:
+        tickvals = [int(i) for i in np.linspace(tick_start, tick_end, 5)]
+
+    def fmt_br_int(x):
+        try:
+            s = f"{int(round(x)):,}"
+        except Exception:
+            s = str(x)
+        return s.replace(',', '.')
+
+    ticktext = [fmt_br_int(v) for v in tickvals]
+
     # Configurar layout do gráfico
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055] 
-        ), 
+            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055]
+        ),
         yaxis=dict(
-            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
-            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
-        ), 
-        plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
+            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
+            tickvals=tickvals, ticktext=ticktext, tickfont=dict(size=12),
+            range=yaxis_range if yaxis_range is not None else None
+        ),
+        plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12),
         legend=dict(
-            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=12)       
+            orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=12)
         ),
         height=600,
-        margin=dict(l=50, r=20, t=20, b=50) 
+        margin=dict(l=50, r=20, t=20, b=50)
     )
 
     st.plotly_chart(fig, use_container_width=True)

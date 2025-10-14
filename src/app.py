@@ -91,6 +91,7 @@ CSV_PAX_INTERNACIONAL = os.path.join('src', 'data', 'Passageiros_Internacionais.
 # --- Função Auxiliar de Limpeza Vetorial (Para todas as funções de Load) ---
 def clean_numeric_series(series):
     """Limpa e converte uma Series Pandas de string com formato BR para float."""
+
     cleaned = (
         series
         .astype(str)
@@ -409,7 +410,7 @@ with col_grafico:
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2055] 
+            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2054] 
         ), 
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 

@@ -204,12 +204,15 @@ def convert_carga_value(value):
 def fmt(v, is_carga):
     if v is None or np.isnan(v): return "N/A"
     v = abs(v) 
-    # Sempre mostrar o número completo (sem abreviações) e, para carga, adicionar ' kg'
+    
     if is_carga:
-        # Mostra sem casas decimais e com separador de milhar (sem sufixo, unidade está no eixo)
-        text = f"{v:,.0f}"
+        if v >= 1e9: text = f"{v/1e9:,.1f}" + "B kg"
+        elif v >= 1e6: text = f"{v/1e6:,.1f}" + "M kg"
+        else: text = f"{v:,.0f}" + " kg"
     else:
-        text = f"{v:,.0f}"
+        if v >= 1e9: text = f"{v/1e9:,.1f}" + "B"
+        elif v >= 1e6: text = f"{v/1e6:,.1f}" + "M"
+        else: text = f"{v:,.0f}"
             
     # Converte para padrão brasileiro (PONTO para milhar, VÍRGULA para decimal)
     text = text.replace(',', 'X').replace('.', ',').replace('X', '.')
@@ -375,17 +378,28 @@ with col_grafico:
         # Calcula o valor máximo para o eixo Y com base em todos os dados da visualização
         max_val = df[coluna_valor].max()
         if pd.notna(max_val) and max_val > 0:
-            yaxis_range = [0, max_val * 1.25]
+            yaxis_range = [0, max_val * 1.20]
 
-        # Determina se a base é de carga (para formatação)
+        # Determina se a base é de carga (para formatação personalizada de ticks)
         is_carga = (coluna_valor == 'carga_(kg)')
+
+        # Prepara tickvals e ticktext para o eixo Y usando a função fmt (ponto como separador de milhar)
+        tick_vals = None
+        tick_text = None
+        if yaxis_range is not None:
+            try:
+                y0, y1 = float(yaxis_range[0]), float(yaxis_range[1])
+                ticks = np.linspace(y0, y1, num=6)
+                tick_vals = [float(round(v)) for v in ticks]
+                tick_text = [fmt(v, is_carga) for v in tick_vals]
+            except Exception:
+                tick_vals = None
+                tick_text = None
 
         # Observado (até 2024)
         if not df_hist.empty:
             df_hist_ate_2024 = df_hist[df_hist['ano'] <= 2024]
             if not df_hist_ate_2024.empty:
-                # Prepara texto customizado para o hover usando a função fmt (padrão BR)
-                custom_hover = df_hist_ate_2024[coluna_valor].apply(lambda v: fmt(v, is_carga)).values
                 fig.add_trace(
                     go.Scatter(
                         x=df_hist_ate_2024['ano'],
@@ -393,9 +407,7 @@ with col_grafico:
                         mode='lines+markers',
                         name='Observado',
                         line=dict(color='#6C757D', width=2, dash='dot'),
-                        marker=dict(size=5, color='#6C757D'),
-                        customdata=custom_hover,
-                        hovertemplate='<b>Observado</b><br>Ano: %{{x}}<br>Valor: %{{customdata}}<extra></extra>'
+                        marker=dict(size=5, color='#6C757D')
                     )
                 )
 
@@ -404,8 +416,6 @@ with col_grafico:
         for cenario_nome, cor in cores_projecao.items():
             serie = df_proj[(df_proj['cenario'] == cenario_nome) & (df_proj['ano'] >= 2025)]
             if not serie.empty:
-                # Formata os valores para o hover com separador de milhar '.' usando fmt
-                custom_hover_proj = serie[coluna_valor].apply(lambda v: fmt(v, is_carga)).values
                 fig.add_trace(
                     go.Scatter(
                         x=serie['ano'],
@@ -413,27 +423,9 @@ with col_grafico:
                         mode='lines+markers',
                         name=cenario_nome,
                         line=dict(color=cor, width=2.5),
-                        marker=dict(size=7, color=cor),
-                        customdata=custom_hover_proj,
-                        hovertemplate='<b>%s</b><br>Ano: %%{x}<br>Valor: %%{customdata}<extra></extra>' % (cenario_nome,)
+                        marker=dict(size=7, color=cor) 
                     )
                 )
-
-    # Configurar ticks Y formatados no padrão BR usando fmt (ponto como separador de milhar)
-    tick_vals = None
-    tick_text = None
-    if yaxis_range is not None:
-        try:
-            y0, y1 = float(yaxis_range[0]), float(yaxis_range[1])
-            # Gera 6 ticks (inclui início e fim)
-            ticks = np.linspace(y0, y1, num=6)
-            # Arredonda valores inteiros para melhor apresentação
-            tick_vals = [float(round(v)) for v in ticks]
-            # Formata cada tick usando fmt
-            tick_text = [fmt(v, is_carga) for v in tick_vals]
-        except Exception:
-            tick_vals = None
-            tick_text = None
 
     # Configurar layout do gráfico
     fig.update_layout(
@@ -616,6 +608,7 @@ if not df.empty:
 
 # ---
 ## Footer
+
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.9em; padding: 0.8rem; margin-top: 0.5rem;">

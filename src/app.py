@@ -419,7 +419,8 @@ with col_grafico:
         legend=dict(
             orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5, font=dict(size=12)       
         ),
-        height=600 
+        height=600
+        margin=dict(l=50, r=20, t=20, b=50) 
     )
 
     st.plotly_chart(fig, use_container_width=True)

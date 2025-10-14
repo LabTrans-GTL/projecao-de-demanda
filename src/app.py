@@ -422,17 +422,34 @@ with col_grafico:
                     )
                 )
 
+    # Configurar ticks Y formatados no padrão BR usando fmt (ponto como separador de milhar)
+    tick_vals = None
+    tick_text = None
+    if yaxis_range is not None:
+        try:
+            y0, y1 = float(yaxis_range[0]), float(yaxis_range[1])
+            # Gera 6 ticks (inclui início e fim)
+            ticks = np.linspace(y0, y1, num=6)
+            # Arredonda valores inteiros para melhor apresentação
+            tick_vals = [float(round(v)) for v in ticks]
+            # Formata cada tick usando fmt
+            tick_text = [fmt(v, is_carga) for v in tick_vals]
+        except Exception:
+            tick_vals = None
+            tick_text = None
+
     # Configurar layout do gráfico
     fig.update_layout(
-        locale='pt-BR',
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
             range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2056]
         ),
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
-            tickformat='.0f', separatethousands=True, tickfont=dict(size=12),
-            range=yaxis_range  # Aplica o range dinâmico
+            tickfont=dict(size=12),
+            range=yaxis_range,  # Aplica o range dinâmico
+            tickvals=tick_vals,
+            ticktext=tick_text
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(

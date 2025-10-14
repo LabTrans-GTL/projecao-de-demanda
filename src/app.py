@@ -370,10 +370,12 @@ with col_grafico:
         df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
         df[coluna_valor] = pd.to_numeric(df[coluna_valor], errors='coerce').fillna(0)
         df = df.dropna(subset=['ano'])
-
         df['cenario'] = df['cenario'].astype(str)
         df_hist = df[df['cenario'].str.lower() == 'observado']
         df_proj = df[df['cenario'].str.lower() != 'observado']
+
+        # Define se a série atual é carga (para formatação BR específica)
+        is_carga_series = (coluna_valor == 'carga_(kg)')
 
         # Calcula o valor máximo para o eixo Y com base em todos os dados da visualização
         max_val = df[coluna_valor].max()
@@ -388,7 +390,10 @@ with col_grafico:
                     go.Scatter(
                         x=df_hist_ate_2024['ano'],
                         y=df_hist_ate_2024[coluna_valor],
-                        mode='lines+markers',
+                        mode='lines+markers+text',
+                        # Apenas exibe rótulos nos pontos (não nos ticks de ano)
+                        text=[fmt(v, is_carga_series) for v in df_hist_ate_2024[coluna_valor].fillna(0).tolist()],
+                        textposition='top center',
                         name='Observado',
                         line=dict(color='#6C757D', width=2, dash='dot'),
                         marker=dict(size=5, color='#6C757D')
@@ -404,7 +409,9 @@ with col_grafico:
                     go.Scatter(
                         x=serie['ano'],
                         y=serie[coluna_valor],
-                        mode='lines+markers',
+                        mode='lines+markers+text',
+                        text=[fmt(v, is_carga_series) for v in serie[coluna_valor].fillna(0).tolist()],
+                        textposition='top center',
                         name=cenario_nome,
                         line=dict(color=cor, width=2.5),
                         marker=dict(size=7, color=cor) 
@@ -415,11 +422,12 @@ with col_grafico:
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2057]
+            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2056]
         ),
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
-            tickformat='.0f', separatethousands=True, tickfont=dict(size=12),
+            # Usamos separatethousands para aplicar separador de milhar e formatamos como inteiro.
+            tickformat=',.0f', separatethousands=True, tickfont=dict(size=12),
             range=yaxis_range  # Aplica o range dinâmico
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
@@ -590,7 +598,6 @@ if not df.empty:
 
 # ---
 ## Footer
-##
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.9em; padding: 0.8rem; margin-top: 0.5rem;">

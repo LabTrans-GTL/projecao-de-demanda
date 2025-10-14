@@ -415,7 +415,7 @@ with col_grafico:
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2057]
+            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2056]
         ),
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),

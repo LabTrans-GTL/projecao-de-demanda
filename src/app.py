@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import numpy as np 
+import math
 import folium
 from streamlit_folium import folium_static
 
@@ -427,16 +428,51 @@ with col_grafico:
     if yaxis_range is not None:
         try:
             y0, y1 = float(yaxis_range[0]), float(yaxis_range[1])
-            ticks = np.linspace(y0, y1, num=6)
-            tick_vals = [int(round(v)) for v in ticks]
-            # Formata com ponto como separador de milhar (sem abreviações)
+            # Nice ticks algorithm
+            def nice_number(x, round_):
+                exp = math.floor(math.log10(x)) if x > 0 else 0
+                f = x / (10 ** exp)
+                if round_:
+                    if f < 1.5:
+                        nf = 1
+                    elif f < 3:
+                        nf = 2
+                    elif f < 7:
+                        nf = 5
+                    else:
+                        nf = 10
+                else:
+                    if f <= 1:
+                        nf = 1
+                    elif f <= 2:
+                        nf = 2
+                    elif f <= 5:
+                        nf = 5
+                    else:
+                        nf = 10
+                return nf * (10 ** exp)
+
+            n_ticks = 6
+            span = y1 - y0 if y1 > y0 else max(1.0, abs(y1))
+            raw_step = span / float(n_ticks - 1)
+            step = nice_number(raw_step, round_=True)
+            nice_min = math.floor(y0 / step) * step
+            nice_max = math.ceil(y1 / step) * step
+            vals = []
+            v = nice_min
+            while v <= nice_max + 1e-9:
+                vals.append(int(round(v)))
+                v += step
+
+            tick_vals = vals
+
             def br_thousand(val):
                 try:
                     s = f"{int(round(val)):,}"
-                    # troca ',' -> temporary, '.'->',' then temporary->'.' to get BR style
                     return s.replace(',', 'X').replace('.', ',').replace('X', '.')
                 except Exception:
                     return str(int(round(val)))
+
             tick_text = [br_thousand(v) for v in tick_vals]
         except Exception:
             tick_vals = None

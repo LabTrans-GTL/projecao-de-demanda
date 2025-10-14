@@ -590,7 +590,7 @@ if not df.empty:
 
 # ---
 ## Footer
-
+##
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #666; font-size: 0.9em; padding: 0.8rem; margin-top: 0.5rem;">

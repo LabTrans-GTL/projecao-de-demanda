@@ -420,6 +420,46 @@ with col_grafico:
                 )
 
     # Configurar layout do gráfico
+    # Build explicit tick labels with '.' as thousands separator to force desired format
+    try:
+        _max = None
+        if yaxis_range is not None:
+            _min, _max = yaxis_range
+        else:
+            _max = float(df[coluna_valor].max()) if not df.empty else 0
+    except Exception:
+        _max = 0
+
+    if _max is None or _max <= 0:
+        _max = 1
+
+    # choose a nice step: 1-2-5 * 10^n
+    import math
+    mag = 10 ** math.floor(math.log10(_max)) if _max > 0 else 1
+    step = mag
+    for candidate in [1, 2, 5, 10]:
+        s = candidate * mag
+        n = math.ceil(_max / s) + 1
+        if 4 <= n <= 8:
+            step = s
+            break
+
+    tick_start = 0
+    tick_end = int(math.ceil(_max))
+    try:
+        tickvals = list(range(tick_start, tick_end + 1, int(step)))
+    except Exception:
+        tickvals = [int(i) for i in np.linspace(tick_start, tick_end, 5)]
+
+    def _fmt_dot(x):
+        try:
+            s = f"{int(round(x)):,}"
+            return s.replace(',', '.')
+        except Exception:
+            return str(x)
+
+    ticktext = [_fmt_dot(v) for v in tickvals]
+
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
@@ -427,7 +467,7 @@ with col_grafico:
         ), 
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
-            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
+            tickvals=tickvals, ticktext=ticktext, tickfont=dict(size=12)                  
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(

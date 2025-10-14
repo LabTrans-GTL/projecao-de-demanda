@@ -370,33 +370,35 @@ with col_grafico:
         df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
         df[coluna_valor] = pd.to_numeric(df[coluna_valor], errors='coerce').fillna(0)
         df = df.dropna(subset=['ano'])
+
         df['cenario'] = df['cenario'].astype(str)
         df_hist = df[df['cenario'].str.lower() == 'observado']
         df_proj = df[df['cenario'].str.lower() != 'observado']
-
-        # Define se a série atual é carga (para formatação BR específica)
-        is_carga_series = (coluna_valor == 'carga_(kg)')
 
         # Calcula o valor máximo para o eixo Y com base em todos os dados da visualização
         max_val = df[coluna_valor].max()
         if pd.notna(max_val) and max_val > 0:
             yaxis_range = [0, max_val * 1.25]
 
+        # Determina se a base é de carga (para formatação)
+        is_carga = (coluna_valor == 'carga_(kg)')
+
         # Observado (até 2024)
         if not df_hist.empty:
             df_hist_ate_2024 = df_hist[df_hist['ano'] <= 2024]
             if not df_hist_ate_2024.empty:
+                # Prepara texto customizado para o hover usando a função fmt (padrão BR)
+                custom_hover = df_hist_ate_2024[coluna_valor].apply(lambda v: fmt(v, is_carga)).values
                 fig.add_trace(
                     go.Scatter(
                         x=df_hist_ate_2024['ano'],
                         y=df_hist_ate_2024[coluna_valor],
                         mode='lines+markers',
-                        # customdata contém o valor já formatado via fmt()
-                        customdata=[fmt(v, is_carga_series) for v in df_hist_ate_2024[coluna_valor].fillna(0).tolist()],
-                        hovertemplate='Ano: %{x}<br>Valor: %{customdata}<extra></extra>',
                         name='Observado',
                         line=dict(color='#6C757D', width=2, dash='dot'),
-                        marker=dict(size=5, color='#6C757D')
+                        marker=dict(size=5, color='#6C757D'),
+                        customdata=custom_hover,
+                        hovertemplate='<b>Observado</b><br>Ano: %{{x}}<br>Valor: %{{customdata}}<extra></extra>'
                     )
                 )
 
@@ -405,16 +407,18 @@ with col_grafico:
         for cenario_nome, cor in cores_projecao.items():
             serie = df_proj[(df_proj['cenario'] == cenario_nome) & (df_proj['ano'] >= 2025)]
             if not serie.empty:
+                # Formata os valores para o hover com separador de milhar '.' usando fmt
+                custom_hover_proj = serie[coluna_valor].apply(lambda v: fmt(v, is_carga)).values
                 fig.add_trace(
                     go.Scatter(
                         x=serie['ano'],
                         y=serie[coluna_valor],
                         mode='lines+markers',
-                        customdata=[fmt(v, is_carga_series) for v in serie[coluna_valor].fillna(0).tolist()],
-                        hovertemplate='Ano: %{x}<br>Valor: %{customdata}<extra></extra>',
                         name=cenario_nome,
                         line=dict(color=cor, width=2.5),
-                        marker=dict(size=7, color=cor) 
+                        marker=dict(size=7, color=cor),
+                        customdata=custom_hover_proj,
+                        hovertemplate='<b>%s</b><br>Ano: %%{x}<br>Valor: %%{customdata}<extra></extra>' % (cenario_nome,)
                     )
                 )
 
@@ -427,8 +431,7 @@ with col_grafico:
         ),
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
-            # Usamos separatethousands para aplicar separador de milhar e formatamos como inteiro.
-            tickformat=',.0f', separatethousands=True, tickfont=dict(size=12),
+            tickformat='.0f', separatethousands=True, tickfont=dict(size=12),
             range=yaxis_range  # Aplica o range dinâmico
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 

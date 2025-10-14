@@ -420,44 +420,60 @@ with col_grafico:
                 )
 
     # Configurar layout do gráfico
-    # Build explicit tick labels with '.' as thousands separator to force desired format
+    # Try to set Plotly locale to pt-BR so separators follow Brazilian formatting.
+    # This is a best-effort; if the environment doesn't accept it, fall back silently.
     try:
-        _max = None
-        if yaxis_range is not None:
-            _min, _max = yaxis_range
-        else:
-            _max = float(df[coluna_valor].max()) if not df.empty else 0
+        import plotly.io as pio
+        pio.templates.default = pio.templates.default  # no-op to avoid linting warnings
+        pio.layout.Template.layout = getattr(pio.layout, 'Template', None)
+        # Some environments may not support setting locale; wrap in try
+        try:
+            pio.templates.default = pio.templates.default
+            pio.layout._plotly_locale = 'pt-BR'
+        except Exception:
+            pass
     except Exception:
-        _max = 0
+        pass
 
-    if _max is None or _max <= 0:
-        _max = 1
-
-    # choose a nice step: 1-2-5 * 10^n
+    # Compute tick positions using a 'nice numbers' algorithm (1,2,2.5,5,10)
     import math
-    mag = 10 ** math.floor(math.log10(_max)) if _max > 0 else 1
-    step = mag
-    for candidate in [1, 2, 5, 10]:
-        s = candidate * mag
-        n = math.ceil(_max / s) + 1
-        if 4 <= n <= 8:
-            step = s
-            break
+    def nice_ticks(start, end, max_ticks=6):
+        span = float(end) - float(start)
+        if span <= 0:
+            return [int(start), int(end)]
+        raw_step = span / (max_ticks - 1)
+        exp = math.floor(math.log10(raw_step))
+        base = raw_step / (10 ** exp)
+        multipliers = [1, 2, 2.5, 5, 10]
+        best = multipliers[-1]
+        for m in multipliers:
+            if base <= m:
+                best = m
+                break
+        step = best * (10 ** exp)
+        nice_start = math.floor(start / step) * step
+        nice_end = math.ceil(end / step) * step
+        vals = []
+        v = nice_start
+        # avoid floating point drift
+        while v <= nice_end + 1e-9:
+            vals.append(int(round(v)))
+            v += step
+        return vals
 
-    tick_start = 0
-    tick_end = int(math.ceil(_max))
+    # Determine max for ticks
     try:
-        tickvals = list(range(tick_start, tick_end + 1, int(step)))
+        _max_for_ticks = float(yaxis_range[1]) if yaxis_range is not None else (float(df[coluna_valor].max()) if not df.empty else 1)
     except Exception:
-        tickvals = [int(i) for i in np.linspace(tick_start, tick_end, 5)]
+        _max_for_ticks = 1
 
+    tickvals = nice_ticks(0, max(1, int(math.ceil(_max_for_ticks))), max_ticks=6)
     def _fmt_dot(x):
         try:
             s = f"{int(round(x)):,}"
             return s.replace(',', '.')
         except Exception:
             return str(x)
-
     ticktext = [_fmt_dot(v) for v in tickvals]
 
     fig.update_layout(
@@ -467,7 +483,7 @@ with col_grafico:
         ), 
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
-            tickvals=tickvals, ticktext=ticktext, tickfont=dict(size=12)                  
+            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(

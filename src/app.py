@@ -91,7 +91,6 @@ CSV_PAX_INTERNACIONAL = os.path.join('src', 'data', 'Passageiros_Internacionais.
 # --- Função Auxiliar de Limpeza Vetorial (Para todas as funções de Load) ---
 def clean_numeric_series(series):
     """Limpa e converte uma Series Pandas de string com formato BR para float."""
-
     cleaned = (
         series
         .astype(str)
@@ -365,6 +364,7 @@ with col_grafico:
     st.markdown(f'<h2 class="content-title">{titulo}</h2>', unsafe_allow_html=True)
     
     fig = go.Figure()
+    yaxis_range = None  # Inicializa o range do eixo Y
 
     if not df.empty:
         df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
@@ -374,6 +374,11 @@ with col_grafico:
         df['cenario'] = df['cenario'].astype(str)
         df_hist = df[df['cenario'].str.lower() == 'observado']
         df_proj = df[df['cenario'].str.lower() != 'observado']
+
+        # Calcula o valor máximo para o eixo Y com base em todos os dados da visualização
+        max_val = df[coluna_valor].max()
+        if pd.notna(max_val) and max_val > 0:
+            yaxis_range = [0, max_val * 1.25]
 
         # Observado (até 2024)
         if not df_hist.empty:
@@ -410,11 +415,12 @@ with col_grafico:
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2054] 
-        ), 
+            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2057]
+        ),
         yaxis=dict(
-            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
-            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
+            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
+            tickformat='.0f', separatethousands=True, tickfont=dict(size=12),
+            range=yaxis_range  # Aplica o range dinâmico
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(
@@ -423,7 +429,7 @@ with col_grafico:
         height=600,
         margin=dict(l=50, r=20, t=20, b=50) 
     )
-
+    
     st.plotly_chart(fig, use_container_width=True)
 
 # --- Coluna 2: MAPA (1/3 da largura) ---

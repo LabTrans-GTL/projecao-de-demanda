@@ -168,8 +168,15 @@ def load_pax_pan_domestico():
         
         # Limpeza robusta para 'passageiros' do PAN
         df['passageiros'] = clean_numeric_series(df['passageiros'])
-        
-        return df[df['natureza'] == 'Doméstico'].copy()
+        # Normaliza a coluna 'natureza' para comparação (remove espaços, lower)
+        df['natureza'] = df['natureza'].astype(str).str.strip().str.lower()
+
+        # Normaliza ICAO e ano
+        df['icao'] = df['icao'].astype(str).str.upper().str.strip()
+        df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
+
+        # Filtra por doméstico (CSV tem 'domestico' sem acento/minúsculo)
+        return df[df['natureza'] == 'domestico'].copy()
     except Exception:
         return pd.DataFrame()
 

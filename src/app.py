@@ -374,6 +374,13 @@ with col_grafico:
         df_hist = df[df['cenario'].str.lower() == 'observado']
         df_proj = df[df['cenario'].str.lower() != 'observado']
 
+        # Determina o range do eixo Y com base no máximo dos dados (adapta acima do máximo)
+        max_val = df[coluna_valor].max()
+        yaxis_range = None
+        if pd.notna(max_val) and max_val > 0:
+            # margem de 10% acima do máximo, garante que o eixo fique acima do maior ponto
+            yaxis_range = [0, float(max_val) * 1.1]
+
         # Observado (até 2024)
         if not df_hist.empty:
             df_hist_ate_2024 = df_hist[df_hist['ano'] <= 2024]
@@ -434,10 +441,23 @@ with col_mapa:
     if not df_base.empty:
         
         # 1. Filtra a base de projeção para o Cenário Tendencial e Ano 2054
-        df_projecao_mapa = df_base[
-            (df_base['cenario'] == 'Tendencial') & 
-            (df_base['ano'] == 2054)
-        ].copy()
+        # Normaliza 'cenario' e 'ano' para evitar problemas de capitalização/formatos
+        df_base_mapa = df_base.copy()
+        if 'cenario' in df_base_mapa.columns:
+            df_base_mapa['cenario'] = df_base_mapa['cenario'].astype(str).str.strip()
+        if 'ano' in df_base_mapa.columns:
+            df_base_mapa['ano'] = pd.to_numeric(df_base_mapa['ano'], errors='coerce')
+
+        # Primeiro tenta usar 2054; se não existir, usa o maior ano disponível para 'Tendencial'
+        df_tend = df_base_mapa[df_base_mapa['cenario'].str.lower() == 'tendencial']
+        if df_tend.empty:
+            df_projecao_mapa = pd.DataFrame()
+        else:
+            if 2054 in df_tend['ano'].values:
+                target_year = 2054
+            else:
+                target_year = int(df_tend['ano'].dropna().max())
+            df_projecao_mapa = df_tend[df_tend['ano'] == target_year].copy()
         
         # 2. Agrupa por ICAO
         df_projecao_mapa = df_projecao_mapa.groupby([coluna_icao]).agg({coluna_valor: 'sum'}).reset_index()

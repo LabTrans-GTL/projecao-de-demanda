@@ -390,10 +390,10 @@ with col_grafico:
                     go.Scatter(
                         x=df_hist_ate_2024['ano'],
                         y=df_hist_ate_2024[coluna_valor],
-                        mode='lines+markers+text',
-                        # Apenas exibe rótulos nos pontos (não nos ticks de ano)
-                        text=[fmt(v, is_carga_series) for v in df_hist_ate_2024[coluna_valor].fillna(0).tolist()],
-                        textposition='top center',
+                        mode='lines+markers',
+                        # customdata contém o valor já formatado via fmt()
+                        customdata=[fmt(v, is_carga_series) for v in df_hist_ate_2024[coluna_valor].fillna(0).tolist()],
+                        hovertemplate='Ano: %{x}<br>Valor: %{customdata}<extra></extra>',
                         name='Observado',
                         line=dict(color='#6C757D', width=2, dash='dot'),
                         marker=dict(size=5, color='#6C757D')
@@ -409,9 +409,9 @@ with col_grafico:
                     go.Scatter(
                         x=serie['ano'],
                         y=serie[coluna_valor],
-                        mode='lines+markers+text',
-                        text=[fmt(v, is_carga_series) for v in serie[coluna_valor].fillna(0).tolist()],
-                        textposition='top center',
+                        mode='lines+markers',
+                        customdata=[fmt(v, is_carga_series) for v in serie[coluna_valor].fillna(0).tolist()],
+                        hovertemplate='Ano: %{x}<br>Valor: %{customdata}<extra></extra>',
                         name=cenario_nome,
                         line=dict(color=cor, width=2.5),
                         marker=dict(size=7, color=cor) 
@@ -420,6 +420,7 @@ with col_grafico:
 
     # Configurar layout do gráfico
     fig.update_layout(
+        locale='pt-BR',
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
             range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2056]

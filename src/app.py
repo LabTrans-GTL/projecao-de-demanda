@@ -91,6 +91,10 @@ CSV_PAX_INTERNACIONAL = os.path.join('src', 'data', 'Passageiros_Internacionais.
 # --- Função Auxiliar de Limpeza Vetorial (Para todas as funções de Load) ---
 def clean_numeric_series(series):
     """Limpa e converte uma Series Pandas de string com formato BR para float."""
+<<<<<<< HEAD
+
+=======
+>>>>>>> afdce26 (Refactor app.py for improved responsiveness and data handling; added international passenger data loading and enhanced CSS styling.)
     cleaned = (
         series
         .astype(str)
@@ -415,12 +419,20 @@ with col_grafico:
     fig.update_layout(
         xaxis=dict(
             title='Ano', tickmode='linear', dtick=5, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), tickfont=dict(size=12),
-            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2057]
-        ),
+<<<<<<< HEAD
+            range=[df['ano'].min() if not df.empty and 'ano' in df.columns else 2000, 2054] 
+        ), 
         yaxis=dict(
-            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'),
+            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
+            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
+=======
+            range=[df['ano'].min()-3 if not df.empty and 'ano' in df.columns else 2000, 2057] 
+        ), 
+        yaxis=dict(
+            title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
             tickformat='.0f', separatethousands=True, tickfont=dict(size=12),
             range=yaxis_range  # Aplica o range dinâmico
+>>>>>>> afdce26 (Refactor app.py for improved responsiveness and data handling; added international passenger data loading and enhanced CSS styling.)
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(

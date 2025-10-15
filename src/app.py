@@ -122,24 +122,70 @@ def load_pax_mercado():
 @st.cache_data
 def load_pax_internacional():
     try:
-        df = pd.read_csv(CSV_PAX_INTERNACIONAL, sep=';', encoding='latin-1')
-        df.columns = ['icao', 'ano', 'cenario', 'sentido', 'natureza', 'passageiros']
+        # First, try semicolon as separator (user suspect it's ';')
+        try:
+            df = pd.read_csv(CSV_PAX_INTERNACIONAL, sep=';', encoding='latin-1')
+            # quick check: if df parsed into a single column, treat as failure
+            if df.shape[1] == 1 and df.columns[0].lower().strip() not in ('icao', 'icao\t'):
+                raise ValueError('Parsed as single column with ;, fall back')
+        except Exception:
+            # Try to infer delimiter (TSV or CSV). Use python engine for robustness.
+            try:
+                df = pd.read_csv(CSV_PAX_INTERNACIONAL, sep=None, engine='python', encoding='latin-1')
+            except Exception:
+                # fallback to tab or semicolon if inference fails
+                try:
+                    df = pd.read_csv(CSV_PAX_INTERNACIONAL, sep='\t', encoding='latin-1')
+                except Exception:
+                    df = pd.read_csv(CSV_PAX_INTERNACIONAL, sep=';', encoding='latin-1')
 
-        # Normaliza colunas-chave
-        df['icao'] = df['icao'].astype(str).str.upper().str.strip()
-        df['cenario'] = df['cenario'].astype(str).str.strip()
-        df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
+        # Ensure expected columns: keep first 6 if extra columns exist
+        if df.shape[1] >= 6:
+            df = df.iloc[:, :6]
+            df.columns = ['icao', 'ano', 'cenario', 'sentido', 'natureza', 'passageiros']
+        else:
+            # try to map known header names to expected columns
+            cols_l = [c.strip().lower() for c in df.columns]
+            mapping = {}
+            if 'icao' in cols_l:
+                mapping[df.columns[cols_l.index('icao')]] = 'icao'
+            if 'ano' in cols_l:
+                mapping[df.columns[cols_l.index('ano')]] = 'ano'
+            if 'cenario' in cols_l or 'cenário' in cols_l:
+                # handle possible accent
+                idx = cols_l.index('cenario') if 'cenario' in cols_l else cols_l.index('cenário')
+                mapping[df.columns[idx]] = 'cenario'
+            if 'sentido' in cols_l:
+                mapping[df.columns[cols_l.index('sentido')]] = 'sentido'
+            if 'natureza' in cols_l:
+                mapping[df.columns[cols_l.index('natureza')]] = 'natureza'
+            if 'passageiros' in cols_l:
+                mapping[df.columns[cols_l.index('passageiros')]] = 'passageiros'
+            if mapping:
+                df = df.rename(columns=mapping)
 
-        # Limpeza robusta para 'passageiros'
-        df['passageiros'] = clean_numeric_series(df['passageiros'])
+        # Normalize key columns if present
+        if 'icao' in df.columns:
+            df['icao'] = df['icao'].astype(str).str.upper().str.strip()
+        if 'cenario' in df.columns:
+            df['cenario'] = df['cenario'].astype(str).str.strip()
+        if 'ano' in df.columns:
+            df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
 
-        # Ignora 'sentido' e agrega por ICAO, ano e cenário
-        df = (
-            df.dropna(subset=['icao', 'ano', 'cenario'])
-              .groupby(['icao', 'ano', 'cenario'], as_index=False)['passageiros']
-              .sum()
-              .sort_values(['icao', 'cenario', 'ano'])
-        )
+        # Ensure passageiros is numeric
+        if 'passageiros' in df.columns:
+            df['passageiros'] = clean_numeric_series(df['passageiros'])
+        else:
+            df['passageiros'] = 0
+
+        # Aggregate by ICAO, ano, cenario
+        if set(['icao', 'ano', 'cenario']).issubset(df.columns):
+            df = (
+                df.dropna(subset=['icao', 'ano', 'cenario'])
+                  .groupby(['icao', 'ano', 'cenario'], as_index=False)['passageiros']
+                  .sum()
+                  .sort_values(['icao', 'cenario', 'ano'])
+            )
 
         return df
     except Exception as e:
@@ -389,9 +435,12 @@ with col_grafico:
             yaxis_range = [0, float(max_val) * 1.1]
 
         # Observado (até 2024)
+        is_carga_chart = (coluna_valor == 'carga_(kg)')
         if not df_hist.empty:
             df_hist_ate_2024 = df_hist[df_hist['ano'] <= 2024]
             if not df_hist_ate_2024.empty:
+                # prepare formatted hover values using fmt()
+                hist_hover = [fmt(v, is_carga_chart) for v in df_hist_ate_2024[coluna_valor]]
                 fig.add_trace(
                     go.Scatter(
                         x=df_hist_ate_2024['ano'],
@@ -399,7 +448,9 @@ with col_grafico:
                         mode='lines+markers',
                         name='Observado',
                         line=dict(color='#6C757D', width=2, dash='dot'),
-                        marker=dict(size=5, color='#6C757D')
+                        marker=dict(size=5, color='#6C757D'),
+                        customdata=hist_hover,
+                        hovertemplate='<b>Observado</b><br>Ano: %{x}<br>Valor: %{customdata}<extra></extra>'
                     )
                 )
 
@@ -408,6 +459,7 @@ with col_grafico:
         for cenario_nome, cor in cores_projecao.items():
             serie = df_proj[(df_proj['cenario'] == cenario_nome) & (df_proj['ano'] >= 2025)]
             if not serie.empty:
+                proj_hover = [fmt(v, is_carga_chart) for v in serie[coluna_valor]]
                 fig.add_trace(
                     go.Scatter(
                         x=serie['ano'],
@@ -415,9 +467,50 @@ with col_grafico:
                         mode='lines+markers',
                         name=cenario_nome,
                         line=dict(color=cor, width=2.5),
-                        marker=dict(size=7, color=cor) 
+                        marker=dict(size=7, color=cor),
+                        customdata=proj_hover,
+                        hovertemplate=f'<b>{cenario_nome}</b><br>Ano: %{{x}}<br>Valor: %{{customdata}}<extra></extra>'
                     )
                 )
+
+    # Build y-axis tick labels (dots thousands) but keep years untouched on x-axis
+    import math
+    def nice_ticks(start, end, max_ticks=6):
+        span = float(end) - float(start)
+        if span <= 0:
+            return [int(start), int(end)]
+        raw_step = span / (max_ticks - 1)
+        exp = math.floor(math.log10(raw_step))
+        base = raw_step / (10 ** exp)
+        multipliers = [1, 2, 2.5, 5, 10]
+        best = multipliers[-1]
+        for m in multipliers:
+            if base <= m:
+                best = m
+                break
+        step = best * (10 ** exp)
+        nice_start = math.floor(start / step) * step
+        nice_end = math.ceil(end / step) * step
+        vals = []
+        v = nice_start
+        while v <= nice_end + 1e-9:
+            vals.append(int(round(v)))
+            v += step
+        return vals
+
+    try:
+        _max_for_ticks = float(yaxis_range[1]) if yaxis_range is not None else (float(df[coluna_valor].max()) if not df.empty else 1)
+    except Exception:
+        _max_for_ticks = 1
+
+    tickvals = nice_ticks(0, max(1, int(math.ceil(_max_for_ticks))), max_ticks=6)
+    def _fmt_dot(x):
+        try:
+            s = f"{int(round(x)):,}"
+            return s.replace(',', '.')
+        except Exception:
+            return str(x)
+    ticktext = [_fmt_dot(v) for v in tickvals]
 
     # Configurar layout do gráfico
     fig.update_layout(
@@ -427,7 +520,7 @@ with col_grafico:
         ), 
         yaxis=dict(
             title=y_label, gridcolor='#e0e0e0', title_font=dict(size=13, color='#333'), 
-            tickformat='.0f', separatethousands=True, tickfont=dict(size=12)                  
+            tickvals=tickvals, ticktext=ticktext, tickfont=dict(size=12)                  
         ), 
         plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Arial, sans-serif", color='#333', size=12), 
         legend=dict(

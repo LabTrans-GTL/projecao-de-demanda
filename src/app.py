@@ -560,8 +560,26 @@ with col_mapa:
             df_projecao_mapa = df_tend[df_tend['ano'] == target_year].copy()
         
         # 2. Agrupa por ICAO
-        df_projecao_mapa = df_projecao_mapa.groupby([coluna_icao]).agg({coluna_valor: 'sum'}).reset_index()
-        df_projecao_mapa = df_projecao_mapa.rename(columns={coluna_valor: 'volume_2054'})
+        # Defensive: ensure expected columns exist (handle case differences or unexpected headers)
+        if coluna_icao not in df_projecao_mapa.columns:
+            ci_matches = [c for c in df_projecao_mapa.columns if c.strip().lower() == coluna_icao.lower()]
+            if ci_matches:
+                df_projecao_mapa = df_projecao_mapa.rename(columns={ci_matches[0]: coluna_icao})
+            else:
+                st.warning(f"Coluna de ICAO '{coluna_icao}' não encontrada na base de projeção. Colunas disponíveis: {list(df_projecao_mapa.columns)}")
+                df_projecao_mapa = pd.DataFrame()
+
+        if not df_projecao_mapa.empty and coluna_valor not in df_projecao_mapa.columns:
+            cv_matches = [c for c in df_projecao_mapa.columns if c.strip().lower() == coluna_valor.lower()]
+            if cv_matches:
+                df_projecao_mapa = df_projecao_mapa.rename(columns={cv_matches[0]: coluna_valor})
+            else:
+                st.warning(f"Coluna de valor '{coluna_valor}' não encontrada na base de projeção. Colunas disponíveis: {list(df_projecao_mapa.columns)}")
+                df_projecao_mapa = pd.DataFrame()
+
+        if not df_projecao_mapa.empty:
+            df_projecao_mapa = df_projecao_mapa.groupby([coluna_icao]).agg({coluna_valor: 'sum'}).reset_index()
+            df_projecao_mapa = df_projecao_mapa.rename(columns={coluna_valor: 'volume_2054'})
         
         # 3. Junta a projeção com as coordenadas
         map_data_volume = aeroportos.merge(

@@ -87,6 +87,8 @@ CSV_PAX_PAN = os.path.join('src', 'data', 'base_final_PAN_cenarios.csv')
 CSV_CARGA = os.path.join('src', 'data', 'Painel_Carga.csv')
 # Caminho corrigido para o CSV de passageiros internacionais
 CSV_PAX_INTERNACIONAL = os.path.join('src', 'data', 'Passageiros_Internacionais.csv')
+# Caminho para carga internacional
+CSV_CARGA_INTERNACIONAL = os.path.join('src', 'data', 'Carga_internacional.csv')
 # Caminho para movimentação de aeronaves PAN domésticas
 CSV_MOV_AERONAVES = os.path.join('src', 'data', 'Mov_Aeronaves_dom_PAN.csv')
 
@@ -230,7 +232,7 @@ def load_pax_pan_domestico():
 
 @st.cache_data
 def load_mov_aeronaves_pan_domestico():
-    """Carrega dados de movimentação de aeronaves domésticas do PAN (Rede de Desenvolvimento)"""
+    """Carrega dados de movimentação de aeronaves domésticas do PAN"""
     try:
         df = pd.read_csv(CSV_MOV_AERONAVES, sep=';', encoding='latin-1')
         # Columns: Cenário Projeção;Natureza;ICAO;Atributo;Valor
@@ -248,6 +250,29 @@ def load_mov_aeronaves_pan_domestico():
         
         # Filtra por doméstico
         return df[df['natureza'] == 'domestico'].copy()
+    except Exception:
+        return pd.DataFrame()
+
+@st.cache_data
+def load_carga_internacional():
+    """Carrega dados de carga internacional"""
+    try:
+        df = pd.read_csv(CSV_CARGA_INTERNACIONAL, sep=';', encoding='latin-1')
+        # Columns: ICAO;Sentido;Cenário;Ano;Carga (kg)
+        df.columns = ['icao', 'sentido', 'cenario', 'ano', 'carga_(kg)']
+        
+        # Limpeza robusta para 'carga_(kg)'
+        df['carga_(kg)'] = clean_numeric_series(df['carga_(kg)'])
+        
+        # Normaliza ICAO, cenario e ano
+        df['icao'] = df['icao'].astype(str).str.upper().str.strip()
+        df['cenario'] = df['cenario'].astype(str).str.strip()
+        df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
+        
+        # Agrupa por ICAO, Cenário e Ano (soma Exportação + Importação)
+        df_agrupado = df.groupby(['icao', 'cenario', 'ano'])['carga_(kg)'].sum().reset_index()
+        
+        return df_agrupado
     except Exception:
         return pd.DataFrame()
 
@@ -322,6 +347,7 @@ with st.sidebar:
     )
     
     natureza_pax = None
+    natureza_carga = None
     tipo_rede = None 
     
     if tipo_projecao == 'Passageiros':
@@ -334,8 +360,14 @@ with st.sidebar:
         if natureza_pax == 'Doméstico':
             tipo_rede = st.selectbox(
                 'Rede de Projeção Doméstica',
-                ['Mercado (Rede Atual)', 'PAN (Rede de Planejamento)']
+                ['Mercado (Rede Atual)', 'PAN (Rede de Desenvolvimento)']
             )
+    
+    elif tipo_projecao == 'Carga':
+        natureza_carga = st.selectbox(
+            'Natureza da Carga',
+            ['Doméstica', 'Internacional']
+        )
 
     # Lógica de carregamento de base
     df_base = pd.DataFrame()
@@ -344,10 +376,16 @@ with st.sidebar:
     y_label = ''
     
     if tipo_projecao == 'Carga':
-        df_base = carga
-        coluna_icao = 'icao'
-        coluna_valor = 'carga_(kg)'
-        y_label = 'Carga (kg)'
+        if natureza_carga == 'Internacional':
+            df_base = load_carga_internacional()
+            coluna_icao = 'icao'
+            coluna_valor = 'carga_(kg)'
+            y_label = 'Carga Internacional (kg)'
+        else:  # Doméstica
+            df_base = carga
+            coluna_icao = 'icao'
+            coluna_valor = 'carga_(kg)'
+            y_label = 'Carga Doméstica (kg)'
     
     elif tipo_projecao == 'Movimentação de Aeronaves':
         df_base = load_mov_aeronaves_pan_domestico()
@@ -411,16 +449,19 @@ with st.sidebar:
                 df = df_base[df_base[coluna_icao] == icao].copy()
 
             if tipo_projecao == 'Carga':
-                titulo = f'Projeção de Carga - {icao}'
+                if natureza_carga == 'Internacional':
+                    titulo = f'Carga Internacional - {icao}'
+                else:
+                    titulo = f'Carga Doméstica - {icao}'
             elif tipo_projecao == 'Movimentação de Aeronaves':
-                titulo = f'Movimentação de Aeronaves - PAN (Rede de Desenvolvimento) - {icao}'
+                titulo = f'Movimentação de Aeronaves (PAN) - {icao}'
             elif tipo_projecao == 'Passageiros':
                 if natureza_pax == 'Internacional':
                     titulo = f'Passageiros Internacionais - {icao}'
                 elif tipo_rede == 'Mercado (Rede Atual)':
                     titulo = f'Passageiros Domésticos - Mercado (Rede Atual) - {icao}'
                 else:
-                    titulo = f'Passageiros Domésticos - PAN (Rede de Planejamento) - {icao}'
+                    titulo = f'Passageiros Domésticos (PAN) - {icao}'
             
             st.markdown(f"**Aeroporto:** {icao} - {cidade}/{uf}")
         
@@ -429,16 +470,19 @@ with st.sidebar:
             df = df_base.groupby(['ano', 'cenario'])[coluna_valor].sum().reset_index()
         
         if tipo_projecao == 'Carga':
-            titulo = 'Projeção de Carga - Total Brasil'
+            if natureza_carga == 'Internacional':
+                titulo = 'Carga Internacional - Total Brasil'
+            else:
+                titulo = 'Carga Doméstica - Total Brasil'
         elif tipo_projecao == 'Movimentação de Aeronaves':
-            titulo = 'Movimentação de Aeronaves - PAN (Rede de Desenvolvimento) - Total Brasil'
+            titulo = 'Movimentação de Aeronaves (PAN) - Total Brasil'
         elif tipo_projecao == 'Passageiros':
             if natureza_pax == 'Internacional':
                 titulo = 'Passageiros Internacionais - Total Brasil'
             elif tipo_rede == 'Mercado (Rede Atual)':
                 titulo = 'Passageiros Domésticos - Mercado (Rede Atual) - Total Brasil'
             else:
-                titulo = 'Passageiros Domésticos - PAN (Rede de Planejamento) - Total Brasil'
+                titulo = 'Passageiros Domésticos (PAN) - Total Brasil'
         
         st.markdown('**Escopo:** Total Brasil')
 

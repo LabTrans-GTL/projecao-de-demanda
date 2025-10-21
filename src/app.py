@@ -87,6 +87,8 @@ CSV_PAX_PAN = os.path.join('src', 'data', 'base_final_PAN_cenarios.csv')
 CSV_CARGA = os.path.join('src', 'data', 'Painel_Carga.csv')
 # Caminho corrigido para o CSV de passageiros internacionais
 CSV_PAX_INTERNACIONAL = os.path.join('src', 'data', 'Passageiros_Internacionais.csv')
+# Caminho para movimentação de aeronaves PAN domésticas
+CSV_MOV_AERONAVES = os.path.join('src', 'data', 'Mov_Aeronaves_dom_PAN.csv')
 
 # --- Função Auxiliar de Limpeza Vetorial (Para todas as funções de Load) ---
 def clean_numeric_series(series):
@@ -226,6 +228,29 @@ def load_pax_pan_domestico():
     except Exception:
         return pd.DataFrame()
 
+@st.cache_data
+def load_mov_aeronaves_pan_domestico():
+    """Carrega dados de movimentação de aeronaves domésticas do PAN (Rede de Desenvolvimento)"""
+    try:
+        df = pd.read_csv(CSV_MOV_AERONAVES, sep=';', encoding='latin-1')
+        # Columns: Cenário Projeção;Natureza;ICAO;Atributo;Valor
+        df.columns = ['cenario', 'natureza', 'icao', 'ano', 'movimentacao']
+        
+        # Limpeza robusta para 'movimentacao'
+        df['movimentacao'] = clean_numeric_series(df['movimentacao'])
+        
+        # Normaliza a coluna 'natureza' para comparação (remove espaços, lower)
+        df['natureza'] = df['natureza'].astype(str).str.strip().str.lower()
+        
+        # Normaliza ICAO e ano
+        df['icao'] = df['icao'].astype(str).str.upper().str.strip()
+        df['ano'] = pd.to_numeric(df['ano'], errors='coerce')
+        
+        # Filtra por doméstico
+        return df[df['natureza'] == 'domestico'].copy()
+    except Exception:
+        return pd.DataFrame()
+
 # --- Funções de Conversão (NÃO USADAS NA BASE, MANTIDAS POR SEGURANÇA) ---
 # Essas funções não são mais chamadas na sidebar, pois a limpeza já é feita nos loaders
 def convert_passageiros_value(value):
@@ -293,7 +318,7 @@ with st.sidebar:
     
     tipo_projecao = st.selectbox(
     'Tipo de Projeção',
-        ['Passageiros', 'Carga']
+        ['Passageiros', 'Carga', 'Movimentação de Aeronaves']
     )
     
     natureza_pax = None
@@ -323,6 +348,12 @@ with st.sidebar:
         coluna_icao = 'icao'
         coluna_valor = 'carga_(kg)'
         y_label = 'Carga (kg)'
+    
+    elif tipo_projecao == 'Movimentação de Aeronaves':
+        df_base = load_mov_aeronaves_pan_domestico()
+        coluna_icao = 'icao'
+        coluna_valor = 'movimentacao'
+        y_label = 'Movimentação de Aeronaves'
         
     elif tipo_projecao == 'Passageiros':
         if natureza_pax == 'Internacional':
@@ -381,6 +412,8 @@ with st.sidebar:
 
             if tipo_projecao == 'Carga':
                 titulo = f'Projeção de Carga - {icao}'
+            elif tipo_projecao == 'Movimentação de Aeronaves':
+                titulo = f'Movimentação de Aeronaves - PAN (Rede de Desenvolvimento) - {icao}'
             elif tipo_projecao == 'Passageiros':
                 if natureza_pax == 'Internacional':
                     titulo = f'Passageiros Internacionais - {icao}'
@@ -397,6 +430,8 @@ with st.sidebar:
         
         if tipo_projecao == 'Carga':
             titulo = 'Projeção de Carga - Total Brasil'
+        elif tipo_projecao == 'Movimentação de Aeronaves':
+            titulo = 'Movimentação de Aeronaves - PAN (Rede de Desenvolvimento) - Total Brasil'
         elif tipo_projecao == 'Passageiros':
             if natureza_pax == 'Internacional':
                 titulo = 'Passageiros Internacionais - Total Brasil'
